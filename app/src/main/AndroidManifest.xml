@@ -3,6 +3,7 @@
     package="gxd.book">
     <application
         android:name=".BookApplication"
+	android:theme="@style/AppTheme"
         android:allowBackup="true">
         <activity
             android:name=".BookBootstrapActivity">
