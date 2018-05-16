@@ -1,6 +1,7 @@
 package gxd.book
 
 import android.app.Application
+import gxd.book.business.PdfCore
 import io.realm.Realm
 
 /**
@@ -10,5 +11,6 @@ class BookApplication:Application(){
     override fun onCreate() {
         super.onCreate()
         Realm.init(this)
+        PdfCore.init(this)
     }
 }

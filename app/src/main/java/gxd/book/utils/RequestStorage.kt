@@ -6,7 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
-import gxd.android.startBundle
+import gxd.book.android.startBundle
 import org.greenrobot.eventbus.EventBus
 
 class RequestStorage:AppCompatActivity(){

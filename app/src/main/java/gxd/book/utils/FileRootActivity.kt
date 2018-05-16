@@ -1,14 +1,13 @@
 package gxd.book.utils
 
-import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.text.Editable
 import android.text.TextWatcher
 import android.widget.EditText
-import gxd.android.endBundle
-import gxd.android.startBundle
+import gxd.book.android.endBundle
+import gxd.book.android.startBundle
 import org.greenrobot.eventbus.EventBus
 import org.jetbrains.anko.button
 import org.jetbrains.anko.editText
