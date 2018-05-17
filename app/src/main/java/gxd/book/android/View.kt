@@ -2,6 +2,7 @@ package gxd.book.android
 
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 
 val View.actualWidth:Int
     inline get() = layoutParams.width
@@ -22,3 +23,4 @@ fun View.renderSize(callback:(Pair<Int,Int>)->Unit) =
             callback(Pair<Int, Int>(width, height))
             return@addOnPreDrawListener true
         }
+

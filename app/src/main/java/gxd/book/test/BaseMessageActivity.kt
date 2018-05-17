@@ -3,8 +3,10 @@ package gxd.book.test
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.widget.TextView
+import gxd.book.android.sdPath
 import gxd.book.android.startBundle
 import gxd.book.utils.MessageEvent
+import gxd.book.utils.PdfActivity
 import gxd.book.utils.RequestStorage
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
@@ -30,6 +32,13 @@ class BaseMessageActivity:AppCompatActivity(){
                     text = "存储权限请求"
                     setOnClickListener {
                         RequestStorage.check(this@BaseMessageActivity)
+                    }
+                }
+                button {
+                    text = "打开文档"
+                    setOnClickListener {
+                        val filename = "${ctx.sdPath}/one/lkjk75.PDF"
+                        PdfActivity.fromFileName(this@BaseMessageActivity, filename)
                     }
                 }
             }

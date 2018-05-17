@@ -1,9 +1,40 @@
 package gxd.book.android
 
 import android.content.Context
+import android.graphics.Color
 import android.os.Environment
 import android.os.storage.StorageManager
+import android.view.Gravity
+import android.widget.TextView
+import org.jetbrains.anko.sp
+import org.jetbrains.anko.textColor
 import java.io.File
+
+inline fun Context.titleError(title:String) = TextView(this).apply {
+    text = title
+    textSize = sp(30).toFloat()
+    textColor = Color.RED
+    gravity = Gravity.CENTER
+}
+inline fun Context.titleSuccess(title:String) = TextView(this).apply {
+    text = title
+    textSize = sp(30).toFloat()
+    textColor = Color.GREEN
+    gravity = Gravity.CENTER
+}
+inline fun Context.titleNotice(title:String) = TextView(this).apply {
+    text = title
+    textSize = sp(30).toFloat()
+    textColor = Color.BLUE
+    gravity = Gravity.CENTER
+}
+inline fun Context.titleMessage(title:String) = TextView(this).apply {
+    text = title
+    textSize = sp(26).toFloat()
+    textColor = Color.BLACK
+    gravity = Gravity.LEFT
+}
+
 
 val Context.sdPath:File
     inline get() = Environment.getExternalStorageDirectory()
