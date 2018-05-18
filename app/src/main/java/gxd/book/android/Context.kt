@@ -5,9 +5,10 @@ import android.graphics.Color
 import android.os.Environment
 import android.os.storage.StorageManager
 import android.view.Gravity
+import android.view.View
+import android.widget.Button
 import android.widget.TextView
-import org.jetbrains.anko.sp
-import org.jetbrains.anko.textColor
+import org.jetbrains.anko.*
 import java.io.File
 
 inline fun Context.titleError(title:String) = TextView(this).apply {
@@ -34,6 +35,35 @@ inline fun Context.titleMessage(title:String) = TextView(this).apply {
     textColor = Color.BLACK
     gravity = Gravity.LEFT
 }
+
+
+//(View)->Unit : 看设置Button的View，及执行其他代码
+fun Context.controlHeader(up:(View)->Boolean,
+                                 down:(View)->Boolean,
+                                 left:(View)->Boolean,
+                                 right:(View)->Boolean,
+                          update:(View)->Boolean)= horizontalScrollView {
+    val updateColor = fun(v: View, result: Boolean) {
+        v.backgroundColor = if (result) Color.LTGRAY else Color.DKGRAY
+    }
+    button {
+        text = "Up";setOnClickListener { updateColor(this, up(this)) }
+    }
+    button {
+        text = "Down";setOnClickListener { updateColor(this, down(this)) }
+    }
+    button {
+        text = "Left";setOnClickListener { updateColor(this, left(this)) }
+    }
+    button {
+        text = "Right";setOnClickListener { updateColor(this, right(this)) }
+    }
+    button {
+        text = "Update";setOnClickListener { updateColor(this, update(this)) }
+    }
+}
+
+
 
 
 val Context.sdPath:File

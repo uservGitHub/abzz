@@ -4,13 +4,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 
-val View.actualWidth:Int
+val View.lpWidth:Int
     inline get() = layoutParams.width
 
-val View.actualHeight:Int
+val View.lpHeight:Int
     inline get() = layoutParams.height
 
-inline fun View.actualLp(updateLp:ViewGroup.LayoutParams.() -> Unit) {
+inline fun View.lpUdate(updateLp:ViewGroup.LayoutParams.() -> Unit) {
     layoutParams.updateLp()
     requestLayout()
 }
