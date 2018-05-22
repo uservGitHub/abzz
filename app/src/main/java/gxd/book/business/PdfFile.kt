@@ -19,12 +19,17 @@ import java.io.File
  * 2. 打开文档 openDoc [10,100]
  * 3. 打开页  loadPage [20,30]
  * 4. 呈现页  bitmap [8,20]
+ *
+ * 加载大文件不会有明显耗时，因此推断页的Ptr是指向文件的地址（错误的推断），
+ * 只能推断出文件不会一次加载到内存中。
  */
 
 class PdfFile(val path:String){
     //region    资源释放后为null
     private var doc:PdfDocument? = null
+    //pagePtr在doc关闭后也无法使用
     private var openedPages:SparseBooleanArray? = null
+    //pfd在doc关闭后无法使用，因此没有缓存的必要
     private var pfd:ParcelFileDescriptor? = null
     //endregion
 
@@ -45,8 +50,7 @@ class PdfFile(val path:String){
         //保障页ind只被打开一次（含错误页）
         if (openedPages!!.indexOfKey(ind)<0){
             try {
-                val ptr = pdfCore.openPage(doc!!, ind)
-                debugErrorPages.append("$ptr,")
+                pdfCore.openPage(doc!!, ind)
                 openedPages!!.put(ind, true)
             }catch (e:Exception){
                 openedPages!!.put(ind, false)
@@ -63,6 +67,7 @@ class PdfFile(val path:String){
 
     fun bmpFromRect(rect: Rect, zoom:Float, ind: Int): Bitmap? {
         if (openPage(ind)) {
+            time = System.currentTimeMillis()
             val bitmap = Bitmap.createBitmap(rect.width(), rect.height(), Bitmap.Config.RGB_565)
             val rectSize = pageSize(ind)
             val pageWidth = (zoom * rectSize.width).toInt()
@@ -97,11 +102,11 @@ class PdfFile(val path:String){
     fun closeDoc(){
         if (doc != null){
             pdfCore.closeDocument(doc)
-            //检查pfd，预期已清理
-            assert(pfd!=null)
+            //检查pfd，已经没有引用且close()，不能再用了
+            pfd = null
             doc = null
-            //暂不清除，测试打开页是否每次都变化，预期是每次都变化
-            //openedPages!!.clear()
+            time = -1
+            openedPages!!.clear()
         }
     }
 }

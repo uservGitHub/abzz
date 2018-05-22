@@ -6,6 +6,7 @@ import android.os.Environment
 import android.os.storage.StorageManager
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import org.jetbrains.anko.*
@@ -36,6 +37,20 @@ inline fun Context.titleMessage(title:String) = TextView(this).apply {
     gravity = Gravity.LEFT
 }
 
+inline fun Context.lpFromSize(widthDip:Int, heightDip:Int) =
+        ViewGroup.LayoutParams(dip(widthDip), dip(heightDip))
+inline fun Context.lpFromWidth(widthDip:Int) =
+        ViewGroup.LayoutParams(dip(widthDip), matchParent)
+inline fun Context.lpFromHeight(heightDip:Int) =
+        ViewGroup.LayoutParams(matchParent, dip(heightDip))
+inline fun Context.lpMatchParent() =
+        ViewGroup.LayoutParams(matchParent,matchParent)
+inline fun Context.lpWrapContent() =
+        ViewGroup.LayoutParams(wrapContent,wrapContent)
+inline fun Context.lpMatchWidth() =
+        ViewGroup.LayoutParams(matchParent,wrapContent)
+inline fun Context.lpMatchHeight() =
+        ViewGroup.LayoutParams(wrapContent,matchParent)
 
 //(View)->Unit : 看设置Button的View，及执行其他代码
 fun Context.controlHeader(up:(View)->Boolean,
