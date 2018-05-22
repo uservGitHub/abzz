@@ -2,9 +2,11 @@ package gxd.book.test
 
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
+import android.widget.LinearLayout
 import android.widget.TextView
 import gxd.book.android.sdPath
 import gxd.book.android.startBundle
+import gxd.book.android.titleNotice
 import gxd.book.utils.MessageEvent
 import gxd.book.utils.PdfActivity
 import gxd.book.utils.RequestStorage
@@ -22,23 +24,32 @@ class BaseMessageActivity:AppCompatActivity(){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         EventBus.getDefault().register(this)
+        asyncMsg = titleNotice("信息显示")
+
 
         verticalLayout {
-            asyncMsg = textView {
-                text = "没有信息"
-            }
+            addView(asyncMsg)
             scrollView {
-                button {
-                    text = "存储权限请求"
-                    setOnClickListener {
-                        RequestStorage.check(this@BaseMessageActivity)
+                linearLayout {
+                    orientation = LinearLayout.HORIZONTAL
+                    button {
+                        text = "存储权限请求"
+                        setOnClickListener {
+                            RequestStorage.check(this@BaseMessageActivity)
+                        }
                     }
-                }
-                button {
-                    text = "打开文档"
-                    setOnClickListener {
-                        val filename = "${ctx.sdPath}/one/lkjk75.PDF"
-                        PdfActivity.fromFileName(this@BaseMessageActivity, filename)
+                    button {
+                        text = "打开文档"
+                        setOnClickListener {
+                            //val filename = "${ctx.sdPath}/one/lkjk75.PDF"
+                            val filename = "${ctx.sdPath}/gxd.book/atest/testpdf.pdf"
+                            val callType = true //正确的调用
+                            if (callType){
+                                PdfActivity.fromFileName(this@BaseMessageActivity, filename)
+                            }else{
+                                startBundle(PdfActivity::class.java)
+                            }
+                        }
                     }
                 }
             }
