@@ -26,8 +26,9 @@ class BookBootstrapActivity : AppCompatActivity() {
         }
         //setContentView(headView)
         //setContentView(R.layout.activity_realm_basic_example)
-        verticalLayout {
-            scrollView {
+
+        scrollView {
+            verticalLayout {
                 button {
                     text = BaseMessageActivity::class.java.simpleName
                     setOnClickListener {

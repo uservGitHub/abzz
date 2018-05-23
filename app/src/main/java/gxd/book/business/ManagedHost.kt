@@ -4,8 +4,10 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.Region
 import android.view.View
 import android.widget.RelativeLayout
+import gxd.book.android.renderSize
 import gxd.book.utils.DrawUtils
 
 /**
@@ -17,30 +19,30 @@ import gxd.book.utils.DrawUtils
 
 class ManagedHost(ctx:Context):RelativeLayout(ctx){
     companion object {
-    internal fun drawEqualParts(canvas: Canvas, partCount:Int, width:Float, height:Float){
-        //横纵 等分，打印起点坐标
-        val dx = width/partCount
-        val dy = height/partCount
+        internal fun drawEqualParts(canvas: Canvas, partCount: Int, width: Float, height: Float) {
+            //横纵 等分，打印起点坐标
+            val dx = width / partCount
+            val dy = height / partCount
 
-        var indX = -1
-        var x = 0F
+            var indX = -1
+            var x = 0F
 
-        while (++indX<partCount){
-            var indY = -1
-            var y = 0F
+            while (++indX < partCount) {
+                var indY = -1
+                var y = 0F
 
-            while (++indY<partCount){
-                //region    遍历
-                val rectF = RectF(x, y, x+dx, y+dy)
-                DrawUtils.drawRect(canvas, rectF)
-                DrawUtils.drawText(canvas, rectF, "$x,$y")
-                //endregion
-                y += dy
+                while (++indY < partCount) {
+                    //region    遍历
+                    val rectF = RectF(x, y, x + dx, y + dy)
+                    DrawUtils.drawRect(canvas, rectF)
+                    DrawUtils.drawText(canvas, rectF, "$x,$y")
+                    //endregion
+                    y += dy
+                }
+                x += dx
             }
-            x += dx
-        }
 
-        /*for (x in 0..width step dx){
+            /*for (x in 0..width step dx){
             for (y in 0..height step dy){
                 val rect = Rect(x,y,x+dx,y+dy)
                 DrawUtils.drawRect(canvas, rect)
@@ -48,33 +50,73 @@ class ManagedHost(ctx:Context):RelativeLayout(ctx){
                 DrawUtils.drawText(canvas, rect, "$x,$y")
             }
         }*/
+        }
     }
-}
     //region    世界是静态的全部的，我在世界的位置PworldBeg,PworldEnd
     internal var worldBegX: Float = 0F
     internal val worldEndX: Float get() = worldEndX + width
     internal var worldBegY: Float = 0F
     internal val worldEndY: Float get() = worldEndY + height
     //endregion
+    private val partLeft:PartView
+    private val partRight:PartView
     init {
         setWillNotDraw(false)
+        partLeft = PartView(0F,0F)
+        partRight = PartView(0F,0F)
     }
-    public fun moveOffset(dx:Float, dy:Float){
-        worldBegY += dx
-        worldBegY += dy
-        //invalidate()
-        //能否只进行部分刷新？？
-        invalidate(0,0,width/2,height/2)
+    public fun moveOffset(dx:Float, dy:Float) {
+        if (modeHor) {
+            if (selectedLeft) {
+                partLeft.also {
+                    it.worldBegX += dx
+                    it.worldBegY += dy
+                }
+            }
+            if (selectedRight) {
+                partRight.also {
+                    it.worldBegX += dx
+                    it.worldBegY += dy
+                }
+            }
+        }
+        /*worldBegX += dx
+        worldBegY += dy*/
+        invalidate()
     }
-    override fun onDraw(canvas: Canvas) {
+    public var selectedLeft:Boolean = true
+    public var selectedRight:Boolean = true
+
+    private var modeHor:Boolean = true
+    private var modeVer:Boolean = false
+    /*override fun onDraw(canvas: Canvas) {
         //region    我是这样呈现世界的
         canvas.translate(-worldBegX, -worldBegY)
         //世界的大小是不变的，从(0,0)到(width,height)，下面使用的变量
         drawEqualParts(canvas,3, width.toFloat(), height.toFloat())
         canvas.translate(worldBegX, worldBegY)
         //endregion
+    }*/
+    override fun onDraw(canvas: Canvas) {
+        if (modeHor) {
+            //region    左部分
+            canvas.save()
+            canvas.clipRect(0, 0, width / 2, height)
+            canvas.translate(partLeft.worldBegX, partLeft.worldBegY)
+            drawEqualParts(canvas, 3, width.toFloat(), height.toFloat())
+            canvas.restore()
+            //endregion
+
+            //region    右部分
+            canvas.clipRect(width / 2, 0, width, height)
+            canvas.translate(partRight.worldBegX, partRight.worldBegY)
+            drawEqualParts(canvas, 3, width.toFloat(), height.toFloat())
+            //endregion
+        }
     }
 
+    inner class PartView(var worldBegX:Float, var worldBegY:Float){
+    }
 
     class CanvasView(ctx:Context):View(ctx) {
         //region    shell.在外层屏幕坐标 world.画布坐标

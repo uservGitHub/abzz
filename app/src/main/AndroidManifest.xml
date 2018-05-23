@@ -12,7 +12,8 @@
         <activity android:name=".utils.RequestStorage"/>
         <activity android:name=".utils.FileRootActivity"/>
         <activity android:name=".utils.PdfActivity"/>
-        <activity android:name=".utils.ManagedHostActivity"/>
+        <activity android:name=".utils.ManagedHostActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize"/>
         <activity
             android:configChanges="keyboardHidden|orientation|screenSize"
             android:windowSoftInputMode="adjustNothing|stateAlwaysHidden"
