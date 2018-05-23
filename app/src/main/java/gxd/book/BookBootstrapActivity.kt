@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.TextView
 import gxd.book.android.startBundle
 import gxd.book.test.BaseMessageActivity
+import gxd.book.utils.ManagedHostActivity
 import org.greenrobot.eventbus.EventBus
 import org.jetbrains.anko.*
 
@@ -31,6 +32,12 @@ class BookBootstrapActivity : AppCompatActivity() {
                     text = BaseMessageActivity::class.java.simpleName
                     setOnClickListener {
                         startBundle(BaseMessageActivity::class.java)
+                    }
+                }
+                button {
+                    text = ManagedHostActivity::class.java.simpleName
+                    setOnClickListener {
+                        startBundle(ManagedHostActivity::class.java)
                     }
                 }
             }

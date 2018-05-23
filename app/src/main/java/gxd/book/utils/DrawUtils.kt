@@ -43,11 +43,22 @@ class DrawUtils{
                         text)
             }
         }
+        fun drawText(canvas: Canvas, rect: RectF, text: String, isBold: Boolean = true){
+            if (text.isNotEmpty()) {
+                textDrawCenter(canvas,
+                        if (isBold) TEXT_PAINT_BOLD else TEXT_PAINT_BOLD,
+                        rect,
+                        text)
+            }
+        }
         fun drawRect(canvas: Canvas, rect: Rect){
             //实际的边框可能是给定值的一半，或全部（扩展到矩形外面）
             canvas.drawRect(rect, STROKE_PAINT)
         }
-
+        fun drawRect(canvas: Canvas, rect: RectF){
+            //实际的边框可能是给定值的一半，或全部（扩展到矩形外面）
+            canvas.drawRect(rect, STROKE_PAINT)
+        }
         val FONT_SIZE: Float
             get() = 32F
         val FONT_FACE: Typeface
@@ -72,7 +83,11 @@ class DrawUtils{
                     rect.exactCenterX(), (rect.exactCenterY() - deltaCenterHeightFromFont(textPaint)),
                     textPaint)
         }
-
+        private inline fun textDrawCenter(canvas: Canvas, textPaint: Paint, rect: RectF, msg: String) {
+            canvas.drawText(msg,
+                    rect.centerX(), (rect.centerY() - deltaCenterHeightFromFont(textPaint)),
+                    textPaint)
+        }
         private inline fun textPaint(colorInt: Int, fontSize: Float) =
                 Paint().apply {
                     color = colorInt
