@@ -59,7 +59,10 @@ fun Context.buttons(vararg clicks:()->Unit) = horizontalScrollView {
         clicks.forEachIndexed { index, function ->
             button {
                 //如果可以反射出function的名称，就用反射出的名称
-                text = "btn$index"
+                val str = function::class.java.name
+                val begPos = str.indexOfFirst { it == '$' }
+                val endPos = str.indexOfLast { it == '$' }
+                text = str.substring(begPos+1, endPos)
                 setOnClickListener {
                     function.invoke()
                 }

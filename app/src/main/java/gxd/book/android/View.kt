@@ -16,6 +16,7 @@ inline fun View.lpUdate(updateLp:ViewGroup.LayoutParams.() -> Unit) {
     requestLayout()
 }
 
+//https://blog.csdn.net/u013125680/article/details/43637993
 inline fun View.hiting(event: MotionEvent, offset:Int = 0):Boolean {
     val pt = IntArray(2, { 0 })
     getLocationOnScreen(pt)
