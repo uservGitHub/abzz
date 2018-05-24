@@ -1,14 +1,13 @@
 package gxd.book.business
 
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Rect
-import android.graphics.RectF
-import android.graphics.Region
+import android.graphics.*
+import android.view.MotionEvent
 import android.view.View
 import android.widget.RelativeLayout
 import gxd.book.android.renderSize
 import gxd.book.utils.DrawUtils
+import java.util.*
 
 /**
  * Created by work on 2018/5/23.
@@ -145,3 +144,200 @@ class ManagedHost(ctx:Context):RelativeLayout(ctx){
         //endregion
     }
 }
+
+class ManagedHostAdv(ctx:Context):RelativeLayout(ctx) {
+    val visRects = mutableListOf<VisRect>()
+    private val visChangedLocker = Any()
+    private val dragPinch:MHostDragPinch
+    init {
+        setWillNotDraw(false)
+        dragPinch = MHostDragPinch(this).apply {
+            enable()
+        }
+    }
+
+    /**
+     * 更新视区布局（执行横/纵向，无数量检查）
+     */
+    private fun updateVisRectLayout(isHor:Boolean){
+        val count = visRects.size
+        if (isHor){
+            val dWidth = width/count
+            var x = 0
+            visRects.forEach {
+                it.also {
+                    it.clipX = x
+                    it.clipY = 0
+                    it.width = dWidth
+                    it.hegith = height
+                }
+                x += dWidth
+            }
+        }else{
+            val dHeight = height/count
+            var y = 0
+            visRects.forEach {
+                it.also {
+                    it.clipX = 0
+                    it.clipY = y
+                    it.width = width
+                    it.hegith = dHeight
+                }
+                y += dHeight
+            }
+        }
+        invalidate()
+    }
+    //region    横/纵向添加，限定视区数量为[0,2]
+    fun addHor():Boolean {
+        synchronized(visChangedLocker) {
+            if (visRects.size > 1) return false
+            visRects.add(VisRect(width, height))
+            updateVisRectLayout(true)
+            return true
+        }
+    }
+    fun removeHor(visRect: VisRect){
+        synchronized(visChangedLocker) {
+            if (visRects.size == 0) return
+            visRects.remove(visRect)
+            updateVisRectLayout(true)
+        }
+    }
+    fun addVer():Boolean{
+        synchronized(visChangedLocker) {
+            if (visRects.size > 1) return false
+            visRects.add(VisRect(width, height))
+            updateVisRectLayout(false)
+            return true
+        }
+    }
+    fun removeVer(visRect: VisRect){
+        synchronized(visChangedLocker) {
+            if (visRects.size == 0) return
+            visRects.remove(visRect)
+            updateVisRectLayout(false)
+        }
+    }
+    //endregion
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        //region    每视区单独调用绘制
+        val r = Random()
+        synchronized(visChangedLocker) {
+            val dt = 80
+            visRects.forEach {
+                val fillColor = Color.rgb(r.nextInt(256), r.nextInt(256), r.nextInt(256))
+                val rect = Rect(dt, dt, width - 2 * dt, height - 2 * dt)
+                it.look(canvas) {
+                    canvas.drawRect(rect, Paint().apply { color = fillColor })
+                }
+            }
+        }
+        //endregion
+    }
+
+    //region    驱动视区
+    fun moveOffset(dx:Float, dy:Float) {
+        synchronized(visChangedLocker) {
+            val idx = dx.toInt()
+            val idy = dy.toInt()
+            visRects.forEach {
+                if (it.canDrive) {
+                    it.worldBegX += idx
+                    it.worldBegY += idy
+                }
+            }
+        }
+        postInvalidate()
+    }
+    fun onDown(e:MotionEvent):Boolean{
+        val x = e.rawX.toInt()
+        val y = e.rawY.toInt()
+        synchronized(visChangedLocker){
+            visRects.find { it.clipRect.contains(x,y) }?.also {
+                it.down = true
+                postInvalidate()
+            }
+        }
+        return true
+    }
+    fun onUp(e:MotionEvent):Boolean{
+        synchronized(visChangedLocker){
+            visRects.forEach {
+                it.down = false
+            }
+            postInvalidate()
+        }
+        return true
+    }
+    fun onScroll(e1:MotionEvent,e2:MotionEvent,dx: Float,dy: Float):Boolean{
+        val x2 = e2.rawX.toInt()
+        val y2 = e2.rawY.toInt()
+        var find = false
+        synchronized(visChangedLocker){
+            visRects.find { it.down }?.also {
+                if(it.clipRect.contains(x2,y2)){
+                    find = true
+                }
+            }
+        }
+        if (find){
+            moveOffset(dx, dy)
+            return true
+        }else{
+            onUp(e2)
+            return false
+        }
+    }
+    //endregion
+}
+
+class VisRect(
+        var width:Int,
+        var hegith:Int,
+        var clipX:Int = 0,
+        var clipY:Int=0,
+        var worldBegX:Int = 0,
+        var worldBegY:Int = 0
+) {
+    var canDrive = true
+    var down = false
+    val worldEndX: Int get() = worldBegX + width
+    val worldEndY: Int get() = worldBegY + hegith
+    val clipRect: Rect get() = Rect(clipX, clipY, clipX + width, clipY + hegith)
+    val worldRect: Rect get() = Rect(worldBegX, worldBegY, worldEndX, worldEndY)
+
+    fun look(canvas: Canvas, f: (Canvas) -> Unit) {
+        canvas.save()
+        canvas.clipRect(clipRect)   //指定区域
+        if (down){
+            canvas.drawColor(Color.LTGRAY)
+        }
+        //look的位置
+        canvas.translate(-worldBegX.toFloat(), -worldBegY.toFloat())
+        //draw world
+        f.invoke(canvas)
+        canvas.restore()
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

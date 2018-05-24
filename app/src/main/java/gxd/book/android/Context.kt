@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import org.jetbrains.anko.*
 import java.io.File
@@ -52,29 +53,47 @@ inline fun Context.lpMatchWidth() =
 inline fun Context.lpMatchHeight() =
         ViewGroup.LayoutParams(wrapContent,matchParent)
 
+fun Context.buttons(vararg clicks:()->Unit) = horizontalScrollView {
+    linearLayout {
+        orientation = LinearLayout.HORIZONTAL
+        clicks.forEachIndexed { index, function ->
+            button {
+                //如果可以反射出function的名称，就用反射出的名称
+                text = "btn$index"
+                setOnClickListener {
+                    function.invoke()
+                }
+            }
+        }
+    }
+}
+
 //(View)->Unit : 看设置Button的View，及执行其他代码
 fun Context.controlHeader(up:(View)->Boolean,
                                  down:(View)->Boolean,
                                  left:(View)->Boolean,
                                  right:(View)->Boolean,
                           update:(View)->Boolean)= horizontalScrollView {
-    val updateColor = fun(v: View, result: Boolean) {
-        v.backgroundColor = if (result) Color.LTGRAY else Color.DKGRAY
-    }
-    button {
-        text = "Up";setOnClickListener { updateColor(this, up(this)) }
-    }
-    button {
-        text = "Down";setOnClickListener { updateColor(this, down(this)) }
-    }
-    button {
-        text = "Left";setOnClickListener { updateColor(this, left(this)) }
-    }
-    button {
-        text = "Right";setOnClickListener { updateColor(this, right(this)) }
-    }
-    button {
-        text = "Update";setOnClickListener { updateColor(this, update(this)) }
+    linearLayout {
+        orientation = LinearLayout.HORIZONTAL
+        val updateColor = fun(v: View, result: Boolean) {
+            v.backgroundColor = if (result) Color.LTGRAY else Color.DKGRAY
+        }
+        button {
+            text = "Up";setOnClickListener { updateColor(this, up(this)) }
+        }
+        button {
+            text = "Down";setOnClickListener { updateColor(this, down(this)) }
+        }
+        button {
+            text = "Left";setOnClickListener { updateColor(this, left(this)) }
+        }
+        button {
+            text = "Right";setOnClickListener { updateColor(this, right(this)) }
+        }
+        button {
+            text = "Update";setOnClickListener { updateColor(this, update(this)) }
+        }
     }
 }
 

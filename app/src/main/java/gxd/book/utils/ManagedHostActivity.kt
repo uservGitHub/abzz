@@ -3,8 +3,10 @@ package gxd.book.utils
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.widget.LinearLayout
+import gxd.book.android.buttons
 import gxd.book.android.lpMatchParent
 import gxd.book.business.ManagedHost
+import gxd.book.business.ManagedHostAdv
 import org.jetbrains.anko.*
 
 /**
@@ -12,42 +14,23 @@ import org.jetbrains.anko.*
  */
 
 class ManagedHostActivity:AppCompatActivity(){
-    lateinit var target:ManagedHost
+    lateinit var target:ManagedHostAdv
+
+    val addHor:()->Unit = {target.addHor()}
+    val addVer:()->Unit = {target.addVer()}
+    val removeHor:()->Unit = {if (target.visRects.size>0) target.removeHor(target.visRects[0])}
+    val removeVer:()->Unit = {if (target.visRects.size>0) target.removeVer(target.visRects[0])}
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        target = ManagedHost(ctx)
-        verticalLayout {
-            linearLayout {
-                orientation = LinearLayout.HORIZONTAL
-                button {
-                    text = "Big"
-                    setOnClickListener {
-                        target.moveOffset(40F,40F)
-                    }
-                }
-                button {
-                    text = "Small"
-                    setOnClickListener {
-                        target.moveOffset(-40F,-40F)
-                    }
-                }
-                checkBox {
-                    text = "左"
-                    isChecked = true
-                    setOnCheckedChangeListener { buttonView, isChecked ->
-                        target.selectedLeft = isChecked
-                    }
-                }
-                checkBox {
-                    text = "右"
-                    isChecked = true
-                    setOnCheckedChangeListener { buttonView, isChecked ->
-                        target.selectedRight = isChecked
-                    }
-                }
-            }
+        target = ManagedHostAdv(ctx)
+        val controlPanel = ctx.buttons(addHor,addVer,removeHor,removeVer)
 
+        verticalLayout {
+            //只能手动加入
+            addView(controlPanel)
             addView(target, lpMatchParent())
         }
+        //setContentView(ctx.buttons(addVisRect,popVisRect))
     }
 }
