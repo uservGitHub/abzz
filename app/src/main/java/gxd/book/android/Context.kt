@@ -53,6 +53,8 @@ inline fun Context.lpMatchWidth() =
 inline fun Context.lpMatchHeight() =
         ViewGroup.LayoutParams(wrapContent,matchParent)
 
+
+
 fun Context.buttons(vararg clicks:()->Unit) = horizontalScrollView {
     linearLayout {
         orientation = LinearLayout.HORIZONTAL
