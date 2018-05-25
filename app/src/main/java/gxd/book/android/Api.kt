@@ -57,7 +57,7 @@ fun Context.horizontalBtns(onDowns: List<() -> Unit>) = horizontalScrollView {
             button {
                 text = getFunName(function::class.java.name)
                 setOnClickListener { function.invoke() }
-            }
+            }.lparams(wrapContent, matchParent)
         }
     }
 }
@@ -68,7 +68,7 @@ fun Context.horizontalBtnvs(onDowns: List<(Button) -> Unit>) = horizontalScrollV
             button {
                 text = getFunName(function::class.java.name)
                 setOnClickListener { function.invoke(this) }
-            }
+            }.lparams(wrapContent, matchParent)
         }
     }
 }
@@ -80,7 +80,7 @@ fun Context.horizontalBtns(dipWidth:Int, onDowns: List<()->Unit>)= horizontalScr
             button {
                 text = getFunName(function::class.java.name)
                 setOnClickListener { function.invoke() }
-            }.lparams(dip(dipWidth), wrapContent)
+            }.lparams(dip(dipWidth), matchParent)
         }
     }
 }
@@ -95,12 +95,12 @@ fun Context.horizontalBtnvs(dipWidth:Int, onDowns: List<(Button)->Unit>)= horizo
             button {
                 text = getFunName(function::class.java.name)
                 setOnClickListener { function.invoke(this) }
-            }.lparams(dip(dipWidth), wrapContent)
+            }.lparams(dip(dipWidth), matchParent)
         }
     }
 }
 //endregion
-
+//region    verticalBtns
 fun Context.verticalBtns(vararg onDown:()->Unit) = verticalBtns(onDown.toList())
 fun Context.verticalBtnvs(vararg onDown:(Button)->Unit) = verticalBtnvs(onDown.toList())
 fun Context.verticalBtns(onDowns: List<() -> Unit>) = scrollView {
@@ -123,7 +123,7 @@ fun Context.verticalBtnvs(onDowns: List<(Button) -> Unit>) = scrollView {
         }
     }
 }
-
+//endregion
 
 
 
