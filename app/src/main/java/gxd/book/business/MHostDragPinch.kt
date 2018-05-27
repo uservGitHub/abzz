@@ -107,7 +107,6 @@ class MHostDragPinch(val target: ManagedHostAdv):
                 scrolling = false
 
                 //停止操作 ...
-                //target.onUp(event)
             }
             target.onUp(event)
         }

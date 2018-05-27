@@ -1,11 +1,13 @@
 package gxd.book.android
 
 import android.content.Context
+import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import org.jetbrains.anko.*
+import java.util.*
 
 /**
  * Created by work on 2018/5/25.
@@ -124,6 +126,12 @@ fun Context.verticalBtnvs(onDowns: List<(Button) -> Unit>) = scrollView {
     }
 }
 //endregion
+
+val randColor:Int get() {
+    val r = Random()
+    return Color.rgb(r.nextInt(256), r.nextInt(256), r.nextInt(256))
+}
+
 
 
 

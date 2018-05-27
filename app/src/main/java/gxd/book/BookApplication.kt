@@ -5,6 +5,9 @@ import android.util.Log
 import gxd.book.business.PdfCore
 import gxd.book.utils.TickLog
 import io.realm.Realm
+import io.realm.RealmConfiguration
+
+
 
 /**
  * Created by work on 2018/5/16.
@@ -14,6 +17,8 @@ class BookApplication:Application(){
     override fun onCreate() {
         super.onCreate()
         Realm.init(this)
+        /*val config = RealmConfiguration.Builder().build()
+        Realm.deleteRealm(config)*/
         PdfCore.init(this)
 
 /*        TickLog.ms { Realm.init(this) }
