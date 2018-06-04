@@ -110,3 +110,33 @@ class PdfFile(val path:String){
         }
     }
 }
+
+class FileManager(fileName:String){
+    private val pdf:PdfFile
+    init {
+        pdf = PdfFile(fileName)
+        pdf.openFile()
+        pdf.openDoc()
+    }
+    fun close(){
+        pdf.closeDoc()
+    }
+    fun loadPages(){
+
+    }
+
+    class RenderPages(val pages:List<RenderPage>) {
+        fun fetch(begY: Int, endY:Int): List<Bitmap> {
+            var begInd = pages.indexOfFirst { begY>=it.y }
+            var endInt = pages.indexOfLast { endY>it.y }
+            return pages.subList(begInd,endInt).map { it.bmp }
+        }
+    }
+    class RenderPage(val ind: Int,val bmp:Bitmap, val y:Int){
+        internal fun dispose(){
+            if (bmp.isRecycled){
+                bmp.recycle()
+            }
+        }
+    }
+}

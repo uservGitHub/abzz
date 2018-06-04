@@ -2,15 +2,12 @@ package gxd.book.utils
 
 import android.graphics.Bitmap
 import android.graphics.Rect
-import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
-import android.os.SystemClock
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.widget.ImageView
-import android.widget.TextView
 import gxd.book.android.*
-import gxd.book.business.BmpHost
+import gxd.book.business.NormalView
 import gxd.book.business.PdfFile
 import org.jetbrains.anko.button
 import org.jetbrains.anko.ctx
@@ -33,10 +30,9 @@ class PdfActivity:AppCompatActivity() {
     }
 
     var file: File? = null
-    lateinit var outHostView: TextView
     lateinit var img:ImageView
     lateinit var pdffile:PdfFile
-    lateinit var bmpHost:BmpHost
+    lateinit var bmpHost:NormalView
     private var time = 0L
     private val sb = StringBuilder()
     private inline fun calc(f:()->Unit){
@@ -66,7 +62,7 @@ class PdfActivity:AppCompatActivity() {
     }
     private fun normalStart() {
         pdffile = PdfFile(file!!.absolutePath)
-        bmpHost = BmpHost(ctx)
+        bmpHost = NormalView(ctx)
         verticalLayout {
             addView(titleSuccess("参数正确"))
             addView(titleNotice(file!!.absolutePath))
@@ -84,14 +80,22 @@ class PdfActivity:AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        var errMsg = "参数检查中..."
         endBundle?.getString(KEY_FILENAME)?.also {
             val f = File(it)
-            if (f.exists() && f.isFile && f.canRead() && f.name.endsWith(".pdf",true)){
-                file = f
+            when {
+                !f.exists() -> errMsg = "文件不存在：$it"
+                !f.isFile -> errMsg = "不是文件"
+                !f.canRead() -> errMsg = "无法读取"
+                !f.name.endsWith(".pdf", true) -> errMsg = "后缀不正确：${f.name}"
+                else -> {
+                    errMsg = ""
+                    file = f
+                }
             }
         }
         if (file ==null){
-            setContentView(titleError("无效的参数"))
+            setContentView(titleError(errMsg))
             return
         }
 

@@ -8,7 +8,7 @@
         android:name=".BookApplication"
 	    android:theme="@style/AppTheme"
         android:allowBackup="true">
-        <activity android:name=".test.BaseMessageActivity"/>
+        <activity android:name=".test.TestManagedHost"/>
         <activity android:name=".utils.RequestStorage"/>
         <activity android:name=".utils.FileRootActivity"/>
         <activity android:name=".utils.PdfActivity"/>
@@ -19,7 +19,7 @@
         <activity
             android:configChanges="keyboardHidden|orientation|screenSize"
             android:windowSoftInputMode="adjustNothing|stateAlwaysHidden"
-            android:name=".test.TestManagedHost">
+            android:name=".test.BaseMessageActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

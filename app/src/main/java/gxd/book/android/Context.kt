@@ -13,27 +13,30 @@ import android.widget.TextView
 import org.jetbrains.anko.*
 import java.io.File
 
-inline fun Context.titleError(title:String) = TextView(this).apply {
+private const val BigFontSize = 10
+private const val MidFontSize = 8
+
+fun Context.titleError(title:String) = TextView(this).apply {
     text = title
-    textSize = sp(30).toFloat()
+    textSize = sp(BigFontSize).toFloat()
     textColor = Color.RED
     gravity = Gravity.CENTER
 }
-inline fun Context.titleSuccess(title:String) = TextView(this).apply {
+fun Context.titleSuccess(title:String) = TextView(this).apply {
     text = title
-    textSize = sp(30).toFloat()
+    textSize = sp(BigFontSize).toFloat()
     textColor = Color.GREEN
     gravity = Gravity.CENTER
 }
-inline fun Context.titleNotice(title:String) = TextView(this).apply {
+fun Context.titleNotice(title:String) = TextView(this).apply {
     text = title
-    textSize = sp(30).toFloat()
+    textSize = sp(BigFontSize).toFloat()
     textColor = Color.BLUE
     gravity = Gravity.CENTER
 }
-inline fun Context.titleMessage(title:String) = TextView(this).apply {
+fun Context.titleMessage(title:String) = TextView(this).apply {
     text = title
-    textSize = sp(26).toFloat()
+    textSize = sp(MidFontSize).toFloat()
     textColor = Color.BLACK
     gravity = Gravity.LEFT
 }

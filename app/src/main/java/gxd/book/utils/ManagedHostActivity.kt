@@ -4,8 +4,6 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import gxd.book.android.buttons
 import gxd.book.android.lpMatchParent
-import gxd.book.business.ManagedHostAdv
-import gxd.book.business.VisRect
 import org.jetbrains.anko.*
 
 /**
@@ -13,14 +11,7 @@ import org.jetbrains.anko.*
  */
 
 class ManagedHostActivity:AppCompatActivity(){
-    lateinit var target:ManagedHostAdv
-
-/*    val addHor:()->Unit = {target.addHor()}
-    val addVer:()->Unit = {target.addVer()}
-    val removeHor:()->Unit = {if (target.visRects.size>0) target.removeHor(target.visRects[0])}
-    val removeVer:()->Unit = {if (target.visRects.size>0) target.removeVer(target.visRects[0])}
-    val addNew:()->Unit = {target.addNewVisRect()}
-    val removeLast:()->Unit = {target.removeLastVisRect()}*/
+    /*lateinit var target:ManagedHostAdv
     val addLast :() ->Unit = {target.add(0)}
     val remLast:()->Unit = {if (target.visRects.size>0) target.remove(target.visRects.last())}
     val remFirst:()->Unit = {if (target.visRects.size>0) target.remove(target.visRects.first())}
@@ -38,5 +29,5 @@ class ManagedHostActivity:AppCompatActivity(){
             addView(target, lpMatchParent)
         }
         //setContentView(ctx.buttons(addVisRect,popVisRect))
-    }
+    }*/
 }
