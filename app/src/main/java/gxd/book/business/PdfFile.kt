@@ -9,6 +9,7 @@ import com.shockwave.pdfium.PdfDocument
 import com.shockwave.pdfium.PdfiumCore
 import com.shockwave.pdfium.util.Size
 import java.io.File
+import java.nio.channels.FileLock
 
 /**
  * Created by Administrator on 2018/5/22.
@@ -140,3 +141,161 @@ class FileManager(fileName:String){
         }
     }
 }
+
+/**
+ * 滑动加载（处理器）
+ * 滚动方向：默认垂直，定制像素长度，窗口长度
+ */
+class SlideLoad(val isVertical:Boolean = true,val customLength:Int,val length:Int){
+    var minBound:Float = 0F
+        private set
+    var maxBound:Float = 0F
+        private set
+
+
+    private lateinit var pdfFile: PdfFile
+    private lateinit var frames:MutableList<PageFrame>
+    fun jump(pageInd:Int){
+        //pdfFile.loadPages(pageInd, 10)
+
+    }
+
+
+
+    fun load(begPageInd:Int, length: Int) {
+        var sumLength = 0
+        for (pInd in begPageInd..pdfFile.pageCount - 1) {
+            val size = pdfFile.pageSize(pInd)
+
+            val calcLength =
+                    if (isVertical) customLength / size.width * size.height
+                    else customLength / size.height * size.width
+
+            if (sumLength >= length) {
+                break
+            }
+        }
+    }
+
+    data class PageFrame(val pageInd:Int,val pageLength:Int)
+}
+
+
+class TestSideLoading{
+    companion object {
+        private lateinit var pdfFile: PdfFile
+        private var fixedLength: Int = 100
+        private var isVertical = true
+        private var maxBitmapLength = 1600
+        private lateinit var pageFrames: MutableList<PageFrame>
+        private lateinit var bitmapFrames: MutableList<BitmapFrame>
+
+        /**
+         * 初始化pdfFile
+         * 打开文件，打开PdfDocument
+         */
+        fun initPdf() {
+            pdfFile.openFile()
+            pdfFile.openDoc()
+        }
+
+        /**
+         * 向后加载：从指定页fromInd（可从0开始），向后装载指定的长度visLength（像素）
+         * 更新pageFrames(前向添加或后向添加)
+         * 返回：toInd（截止页）
+         */
+        fun loadTail(fromInd: Int, visLength: Int): Int {
+            assert(fromInd in 0..pdfFile.pageCount - 1)
+
+            var toInd = -1
+            var sumLength = 0
+            for (ind in fromInd until pdfFile.pageCount) {
+                val size = pdfFile.pageSize(ind)
+                val calcLength =
+                        if (isVertical) size.height * fixedLength / size.width
+                        else size.width * fixedLength / size.height
+
+                pageFrames.add(PageFrame(ind, calcLength, mutableListOf<Int>()))
+
+                sumLength += calcLength
+                toInd = ind
+                if (sumLength >= visLength) {
+                    break
+                }
+            }
+
+            return toInd
+        }
+
+        /**
+         * 向前加载：从指定页toInd（可从0开始），向前装载指定的visLength（像素）
+         * 更新pageFrames(前向添加或后向添加)
+         * 返回：fromInd（截止页）
+         */
+        fun loadHead(toInd: Int, visLength: Int): Int {
+            assert(toInd in 0..pdfFile.pageCount - 1)
+
+            var fromInd = -1
+            var sumLength = 0
+            for (ind in toInd downTo 0) {
+                val size = pdfFile.pageSize(ind)
+                val calcLength =
+                        if (isVertical) size.height * fixedLength / size.width
+                        else size.width * fixedLength / size.height
+
+                pageFrames.add(0, PageFrame(ind, calcLength))
+                sumLength += calcLength
+                fromInd = ind
+                if (sumLength >= visLength) {
+                    break
+                }
+            }
+
+            return fromInd
+        }
+
+        /**
+         * 关闭pdfFile
+         */
+        fun closePdf() {
+            pdfFile.closeDoc()
+        }
+
+        /**
+         * 填充长度
+         */
+        fun fillHeadAvgLength(pageFrame: PageFrame, visLength: Int) {
+            if (pageFrame.pageLength <= maxBitmapLength) {
+                pageFrame.bmpList.add(pageFrame.pageLength)
+                pageFrame.isFillFinish = true
+                return
+            }
+
+            //尽可能等分像素点
+            val factor = 1 + pageFrame.pageLength / maxBitmapLength
+            val avgLength = pageFrame.pageLength / factor
+
+            var sumLength = 0
+            for (i in 0 until factor) {
+                pageFrame.bmpList.add(avgLength)
+                sumLength += avgLength
+
+                if (sumLength > visLength) {
+                    pageFrame.isFillFinish = false
+                    return
+                }
+            }
+            val remain = pageFrame.pageLength - sumLength
+            if (remain > 0) {
+                pageFrame.bmpList.add(remain)
+            }
+            pageFrame.isFillFinish = true
+        }
+    }
+
+    data class PageFrame(val pageInd:Int,val pageLength:Int,val bmpList:MutableList<Int>,var isFillFinish:Boolean)
+    data class BitmapFrame(val bmp: Bitmap, val worldAxisValue:Int) //小值坐标值
+}
+
+
+
