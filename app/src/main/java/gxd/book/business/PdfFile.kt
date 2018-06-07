@@ -46,7 +46,7 @@ class PdfFile(val file: File){
         pdfCore = PdfCore.globalPdfiumCore!!
     }
 
-    private inline fun openPage(ind:Int):Boolean{
+    internal inline fun openPage(ind:Int):Boolean{
         if (ind<0) return false
 
         //保障页ind只被打开一次（含错误页）
@@ -79,6 +79,14 @@ class PdfFile(val file: File){
             return bitmap
         }
         return null
+    }
+    fun writeBmp(ind: Int, bmp: Bitmap):Boolean{
+        if (openPage(ind)){
+            pdfCore.renderPageBitmap(doc!!, bmp, ind,
+                    0,0,bmp.width,bmp.height)
+            return true
+        }
+        return false
     }
 
     fun loadPages(ind: Int, count:Int=1) {
@@ -119,8 +127,9 @@ class PdfFile(val file: File){
  * 3 位图垂直坐标系有效范围[startBoundary,endBoundary]，是活动边界，差值不超过maxBoundaryWidth。
  * 4 位图水平坐标系的范围[0,sideLength]，是固定边界。
  *  注意：3和4中，像素值的有效范围是终止点-1，如水平像素范围[0,sideLength-1]。
- * 5 单个位图宽是sideLength，高不超过maxBitmapLength
+ * 5 单个位图宽是sideLength，高不超过maxBitmapLength。
  * 6 位图坐标系（0,0）对应的世界坐标点（zeroWorldX,zeroWorlY）。
+ * 7 初始化时，加载传入的第一页
  */
 class VerticalSlide private constructor(
         val isVertical: Boolean,
@@ -217,7 +226,7 @@ class VerticalSlide private constructor(
     /**
      * 下拉加载（边界上移）
      */
-    fun pullDownLoad(worldTopY:Float){
+    fun pullDownLoad(visTopY:Float){
         if (pulling) return
 
     }
@@ -225,9 +234,21 @@ class VerticalSlide private constructor(
     /**
      * 上拉加载（边界下移）
      */
-    fun pullUpLoad(worldBottomY:Float){
+    fun pullUpLoad(visBottomY:Float){
 
     }
+
+    //region    两个页边界（执行构造函数时，已经加载了一页）
+    val canPrePage:Boolean get() = when {
+        pageList.first().pageInd <= 0 -> false
+        else -> pdfFile.openPage(pageList.first().pageInd - 1)
+    }
+    val canNextPage:Boolean get() = when {
+        pageList.last().pageInd + 1 >= pdfFile.pageCount -> false
+        else -> pdfFile.openPage(pageList.last().pageInd + 1)
+    }
+    //endregion
+
 
     //页索引号，页变换后的长度（更加sideLength变换），位图列表
     inner class Block(val pageInd: Int,val pageLength: Int,val avgLength:Int) {

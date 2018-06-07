@@ -15,10 +15,8 @@ import android.widget.FrameLayout
 import android.widget.OverScroller
 import android.widget.RelativeLayout
 import android.widget.TextView
-import org.jetbrains.anko.AnkoLogger
-import org.jetbrains.anko.dip
-import org.jetbrains.anko.info
-import org.jetbrains.anko.sp
+import gxd.book.android.sdPath
+import org.jetbrains.anko.*
 import java.util.*
 
 private val VIEW_TAG = "_View"
@@ -349,6 +347,7 @@ class NormalView(ctx: Context):RelativeLayout(ctx),ViewCallback,AnkoLogger {
         get() = VIEW_TAG
     private val animationManager: ViewAnimationManger
     private val dragPinchManager: ViewDragPinchManager
+    private var slidPageManger:SlidePageManager? = null
     //destroy时要设置为null
     private var splitScreen: SplitScreen? = null
     internal var splitLine: SplitScreen? = null
@@ -386,6 +385,7 @@ class NormalView(ctx: Context):RelativeLayout(ctx),ViewCallback,AnkoLogger {
         visRects.add(VisRect().apply {
 
         })
+
     }
 
     private fun loadConfig() {
@@ -480,6 +480,8 @@ class NormalView(ctx: Context):RelativeLayout(ctx),ViewCallback,AnkoLogger {
         }
         //endregion
 
+        slidPageManger?.renderPages(canvas, -visX, -visY, height)
+
         //region    textlines
         val dh = sp(fontSize + 4).toFloat()
         val cx = width.toFloat() / 2
@@ -533,6 +535,18 @@ class NormalView(ctx: Context):RelativeLayout(ctx),ViewCallback,AnkoLogger {
         info { "hasSize($w,$h)" }
         animationManager.stopAll()
         updateVisRectLayout(false, false)
+
+        if (slidPageManger == null){
+            try {
+                val filename = "${context.sdPath}/gxd.book/atest/testpdf.pdf"
+                val pdfFile = PdfFile(filename)
+                pdfFile.openFile()
+                pdfFile.openDoc()
+                slidPageManger = SlidePageManager(width, pdfFile)
+            }catch (e:Exception){
+                info { "加载文件出错：\n${e.message}" }
+            }
+        }
     }
     //endregion
 
@@ -710,13 +724,6 @@ class NormalView(ctx: Context):RelativeLayout(ctx),ViewCallback,AnkoLogger {
 
 
     //endregion
-
-    inner class VisLine(
-            val horizon: Boolean,
-            var showing: Boolean = false
-    ) {
-
-    }
 
 }
 

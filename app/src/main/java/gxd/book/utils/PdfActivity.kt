@@ -64,7 +64,7 @@ class PdfActivity:AppCompatActivity() {
         pdffile = PdfFile(file!!.absolutePath)
         bmpHost = NormalView(ctx)
         verticalLayout {
-            addView(titleSuccess("参数正确"))
+            /*addView(titleSuccess("参数正确"))
             addView(titleNotice(file!!.absolutePath))
             button {
                 text = "加载文件"
@@ -73,7 +73,7 @@ class PdfActivity:AppCompatActivity() {
                 }
             }
             img = imageView {
-            }
+            }*/
             addView(bmpHost, ctx.lpMatchParent())
         }
     }
