@@ -25,7 +25,8 @@ import java.nio.channels.FileLock
  * 只能推断出文件不会一次加载到内存中。
  */
 
-class PdfFile(val path:String){
+class PdfFile(val file: File){
+    constructor(path:String):this(File(path))
     //region    资源释放后为null
     private var doc:PdfDocument? = null
     //pagePtr在doc关闭后也无法使用
@@ -88,7 +89,6 @@ class PdfFile(val path:String){
     }
     fun openFile() {
         if (pfd == null) {
-            val file = File(path)
             pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
         }
     }
@@ -112,190 +112,168 @@ class PdfFile(val path:String){
     }
 }
 
-class FileManager(fileName:String){
-    private val pdf:PdfFile
+/**
+ * 垂直滑动
+ * 1 不存在世界坐标系。
+ * 2 提供位图坐标系（0,0）对应zeroPageInd的左上点。
+ * 3 位图垂直坐标系有效范围[startBoundary,endBoundary]，是活动边界，差值不超过maxBoundaryWidth。
+ * 4 位图水平坐标系的范围[0,sideLength]，是固定边界。
+ *  注意：3和4中，像素值的有效范围是终止点-1，如水平像素范围[0,sideLength-1]。
+ * 5 单个位图宽是sideLength，高不超过maxBitmapLength
+ * 6 位图坐标系（0,0）对应的世界坐标点（zeroWorldX,zeroWorlY）。
+ */
+class VerticalSlide private constructor(
+        val isVertical: Boolean,
+        sideLength:Int,
+        pdfFile: PdfFile,
+        startPageInd:Int) {
+    constructor(length: Int, pdf: PdfFile) : this(true, length, pdf, 0)
+
+    var sideLength: Int
+        private set
+    var pdfFile: PdfFile
+        private set
+    var startBoundary:Int = 0
+        private set
+    var endBoundary:Int = 0
+        private set
+    var zeroPageInd:Int = -1
+        private set
+    var maxBoundaryWidth:Int = 20000
+        private set
+    var maxBitmapLength:Int = 2000
+        private set
+
+    val pageList:MutableList<Block> = mutableListOf()
+
     init {
-        pdf = PdfFile(fileName)
-        pdf.openFile()
-        pdf.openDoc()
-    }
-    fun close(){
-        pdf.closeDoc()
-    }
-    fun loadPages(){
+        this.sideLength = sideLength
+        this.pdfFile = pdfFile
+        this.zeroPageInd = startPageInd
 
+        val firstBlock = buildAndFillBlock(startPageInd)
+        pageList.add(firstBlock)
+        endBoundary = firstBlock.pageLength
     }
 
-    class RenderPages(val pages:List<RenderPage>) {
-        fun fetch(begY: Int, endY:Int): List<Bitmap> {
-            var begInd = pages.indexOfFirst { begY>=it.y }
-            var endInt = pages.indexOfLast { endY>it.y }
-            return pages.subList(begInd,endInt).map { it.bmp }
+    private fun buildAndFillBlock(pageInd: Int):Block{
+        val size = pdfFile.pageSize(pageInd)
+        //变换后的长度(Int)
+        val calcLength =
+                if (isVertical) size.height * sideLength / size.width
+                else size.width * sideLength / size.height
+
+        //Int
+        val factor = 1 + calcLength / maxBitmapLength
+        //Int,尽可能等分像素点
+        val avgLength = calcLength / factor
+
+        return Block(pageInd, calcLength, avgLength).apply {
+            fillBlock(this, factor)
         }
     }
-    class RenderPage(val ind: Int,val bmp:Bitmap, val y:Int){
-        internal fun dispose(){
-            if (bmp.isRecycled){
+
+    /**
+     * 不考虑特别大的页，一次填充（暂时的）
+     * 以后考虑前向/后向部分填充
+     */
+    private fun fillBlock(block:Block, factor:Int) {
+        var sumLength = 0
+        for (bmpInd in 0..factor) {
+            sumLength += block.avgLength
+            val bmp = Bitmap.createBitmap(
+                    if (isVertical) sideLength else block.avgLength,
+                    if (isVertical) block.avgLength else sideLength,
+                    Bitmap.Config.RGB_565)
+            block.addFrist(bmp)
+        }
+        val remainLength = block.pageLength - sumLength
+        if (remainLength > 0) {
+            val bmp = Bitmap.createBitmap(
+                    if (isVertical) sideLength else remainLength,
+                    if (isVertical) remainLength else sideLength,
+                    Bitmap.Config.RGB_565)
+            block.addFrist(bmp)
+        }
+    }
+
+    @Volatile
+    var pulling:Boolean = false
+        private set
+
+    var zeroWorldX: Float = 0F
+        private set
+    var zeroWorldY: Float = 0F
+        private set
+
+    /**
+     * 零点在世界坐标系中的位置
+     */
+    fun pageZeroFromWorld(x:Float, y:Float){
+        zeroWorldX = x
+        zeroWorldY = y
+    }
+
+    /**
+     * 下拉加载（边界上移）
+     */
+    fun pullDownLoad(worldTopY:Float){
+        if (pulling) return
+
+    }
+
+    /**
+     * 上拉加载（边界下移）
+     */
+    fun pullUpLoad(worldBottomY:Float){
+
+    }
+
+    //页索引号，页变换后的长度（更加sideLength变换），位图列表
+    inner class Block(val pageInd: Int,val pageLength: Int,val avgLength:Int) {
+        private val bmpList: MutableList<Bitmap>
+
+        init {
+            bmpList = mutableListOf()
+        }
+
+
+        private fun remove(bmp: Bitmap): Int {
+            val length = if (isVertical) bmp.height else bmp.width
+            if (bmp.isRecycled) {
                 bmp.recycle()
             }
+            bmpList.remove(bmp)
+            return length
+        }
+
+        /**
+         * 后向访问，位图坐标增大
+         */
+        val backwardList: List<Bitmap> get() = bmpList
+        /**
+         * 前向访问，位图坐标减小
+         */
+        val forwardList: List<Bitmap> get() = bmpList.reversed()
+        fun removeFirst() =
+                if (bmpList.size == 0) 0
+                else remove(bmpList.first())
+
+        fun removeLast() =
+                if (bmpList.size == 0) 0
+                else remove(bmpList.last())
+
+        fun addFrist(bmp: Bitmap) = bmpList.add(0, bmp)
+        fun addLast(bmp: Bitmap) = bmpList.add(bmp)
+        fun clear(): Int {
+            var sumLength = 0
+            bmpList.forEach { sumLength += remove(it) }
+            bmpList.clear()
+            return sumLength
         }
     }
 }
 
-/**
- * 滑动加载（处理器）
- * 滚动方向：默认垂直，定制像素长度，窗口长度
- */
-class SlideLoad(val isVertical:Boolean = true,val customLength:Int,val length:Int){
-    var minBound:Float = 0F
-        private set
-    var maxBound:Float = 0F
-        private set
-
-
-    private lateinit var pdfFile: PdfFile
-    private lateinit var frames:MutableList<PageFrame>
-    fun jump(pageInd:Int){
-        //pdfFile.loadPages(pageInd, 10)
-
-    }
-
-
-
-    fun load(begPageInd:Int, length: Int) {
-        var sumLength = 0
-        for (pInd in begPageInd..pdfFile.pageCount - 1) {
-            val size = pdfFile.pageSize(pInd)
-
-            val calcLength =
-                    if (isVertical) customLength / size.width * size.height
-                    else customLength / size.height * size.width
-
-            if (sumLength >= length) {
-                break
-            }
-        }
-    }
-
-    data class PageFrame(val pageInd:Int,val pageLength:Int)
-}
-
-
-class TestSideLoading{
-    companion object {
-        private lateinit var pdfFile: PdfFile
-        private var fixedLength: Int = 100
-        private var isVertical = true
-        private var maxBitmapLength = 1600
-        private lateinit var pageFrames: MutableList<PageFrame>
-        private lateinit var bitmapFrames: MutableList<BitmapFrame>
-
-        /**
-         * 初始化pdfFile
-         * 打开文件，打开PdfDocument
-         */
-        fun initPdf() {
-            pdfFile.openFile()
-            pdfFile.openDoc()
-        }
-
-        /**
-         * 向后加载：从指定页fromInd（可从0开始），向后装载指定的长度visLength（像素）
-         * 更新pageFrames(前向添加或后向添加)
-         * 返回：toInd（截止页）
-         */
-        fun loadTail(fromInd: Int, visLength: Int): Int {
-            assert(fromInd in 0..pdfFile.pageCount - 1)
-
-            var toInd = -1
-            var sumLength = 0
-            for (ind in fromInd until pdfFile.pageCount) {
-                val size = pdfFile.pageSize(ind)
-                val calcLength =
-                        if (isVertical) size.height * fixedLength / size.width
-                        else size.width * fixedLength / size.height
-
-                pageFrames.add(PageFrame(ind, calcLength, mutableListOf<Int>()))
-
-                sumLength += calcLength
-                toInd = ind
-                if (sumLength >= visLength) {
-                    break
-                }
-            }
-
-            return toInd
-        }
-
-        /**
-         * 向前加载：从指定页toInd（可从0开始），向前装载指定的visLength（像素）
-         * 更新pageFrames(前向添加或后向添加)
-         * 返回：fromInd（截止页）
-         */
-        fun loadHead(toInd: Int, visLength: Int): Int {
-            assert(toInd in 0..pdfFile.pageCount - 1)
-
-            var fromInd = -1
-            var sumLength = 0
-            for (ind in toInd downTo 0) {
-                val size = pdfFile.pageSize(ind)
-                val calcLength =
-                        if (isVertical) size.height * fixedLength / size.width
-                        else size.width * fixedLength / size.height
-
-                pageFrames.add(0, PageFrame(ind, calcLength))
-                sumLength += calcLength
-                fromInd = ind
-                if (sumLength >= visLength) {
-                    break
-                }
-            }
-
-            return fromInd
-        }
-
-        /**
-         * 关闭pdfFile
-         */
-        fun closePdf() {
-            pdfFile.closeDoc()
-        }
-
-        /**
-         * 填充长度
-         */
-        fun fillHeadAvgLength(pageFrame: PageFrame, visLength: Int) {
-            if (pageFrame.pageLength <= maxBitmapLength) {
-                pageFrame.bmpList.add(pageFrame.pageLength)
-                pageFrame.isFillFinish = true
-                return
-            }
-
-            //尽可能等分像素点
-            val factor = 1 + pageFrame.pageLength / maxBitmapLength
-            val avgLength = pageFrame.pageLength / factor
-
-            var sumLength = 0
-            for (i in 0 until factor) {
-                pageFrame.bmpList.add(avgLength)
-                sumLength += avgLength
-
-                if (sumLength > visLength) {
-                    pageFrame.isFillFinish = false
-                    return
-                }
-            }
-            val remain = pageFrame.pageLength - sumLength
-            if (remain > 0) {
-                pageFrame.bmpList.add(remain)
-            }
-            pageFrame.isFillFinish = true
-        }
-    }
-
-    data class PageFrame(val pageInd:Int,val pageLength:Int,val bmpList:MutableList<Int>,var isFillFinish:Boolean)
-    data class BitmapFrame(val bmp: Bitmap, val worldAxisValue:Int) //小值坐标值
-}
 
 
 
