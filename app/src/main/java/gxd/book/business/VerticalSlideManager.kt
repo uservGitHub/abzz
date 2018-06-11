@@ -77,7 +77,8 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
     internal val visMaxY:Float  get() = selectedVisRect.boundaryMax
     internal val visBoundX:Float = 0F
     internal val visBoundY:Float = 0F
-    private inline val selectedVisRect:VisRect get() = visRects.first()
+    private inline val selectedVisRect:VisRect get() =
+        visRects.firstOrNull { it.flagHiting } ?: visRects.first()
 
     private var hasSize = false
     private var visType:Int = VisRect.FILL_ALL
@@ -189,6 +190,7 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
             visRects.add(VisRect(createPageManager()).apply {
                 flagHiting = true
             })
+            autoAdd()
             dragPinchManager.enable()
         }
         updateVisRectLayout(false, false)
@@ -343,7 +345,7 @@ class VisRect(val pageManager: PageManager,val testColor: Int = randColor){
             //canvas.drawColor(Color.LTGRAY)
         }
         //look的位置
-        //canvas.translate(-worldX, -worldY)
+        canvas.translate(clipX, clipY)
         //draw world
         f.invoke(canvas)
         canvas.restore()
