@@ -7,6 +7,7 @@ import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.widget.ImageView
 import gxd.book.android.*
+import gxd.book.business.HostView
 import gxd.book.business.NormalView
 import gxd.book.business.PdfFile
 import org.jetbrains.anko.button
@@ -32,7 +33,7 @@ class PdfActivity:AppCompatActivity() {
     var file: File? = null
     lateinit var img:ImageView
     lateinit var pdffile:PdfFile
-    lateinit var bmpHost:NormalView
+    lateinit var bmpHost:HostView
     private var time = 0L
     private val sb = StringBuilder()
     private inline fun calc(f:()->Unit){
@@ -62,7 +63,7 @@ class PdfActivity:AppCompatActivity() {
     }
     private fun normalStart() {
         pdffile = PdfFile(file!!.absolutePath)
-        bmpHost = NormalView(ctx)
+        bmpHost = HostView(ctx)
         verticalLayout {
             /*addView(titleSuccess("参数正确"))
             addView(titleNotice(file!!.absolutePath))

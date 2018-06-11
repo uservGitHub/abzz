@@ -17,6 +17,7 @@ import io.reactivex.Scheduler
 import io.reactivex.schedulers.Schedulers
 import org.jetbrains.anko.AnkoLogger
 import org.jetbrains.anko.info
+import org.jetbrains.anko.sp
 import java.util.*
 
 private val VIEW_TAG = "_View"
@@ -26,6 +27,26 @@ private val randColor:Int get() {
 }
 
 class HostView(ctx:Context):View(ctx),AnkoLogger{
+    companion object {
+        private const val SelectHandleColor = Color.RED
+        private const val DefaultHandleColor = Color.BLACK
+        private fun strokePaintFrom(isSelected: Boolean, thickness: Float): Paint =
+                Paint().apply {
+                    color = if (isSelected) SelectHandleColor else DefaultHandleColor
+                    style = Paint.Style.STROKE
+                    strokeWidth = thickness
+                    strokeCap = Paint.Cap.BUTT
+                    strokeJoin = Paint.Join.MITER
+                }
+
+        private fun textPaintFrom(colorInt: Int, fontSize: Float) =
+                Paint().apply {
+                    textSize = fontSize
+                    color = colorInt
+                    style = Paint.Style.FILL
+                    textAlign = Paint.Align.LEFT
+                }
+    }
     override val loggerTag: String
         get() = VIEW_TAG
     private val animationManger:AnimationManger
@@ -52,6 +73,8 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
     internal fun moveOffset(dx:Float, dy:Float) = moveTo(visX+dx, visY+dy)
     internal val visX:Float get() = selectedVisRect.worldX
     internal val visY:Float get() = selectedVisRect.worldY
+    internal val visMinY:Float get() = selectedVisRect.boundaryMin
+    internal val visMaxY:Float  get() = selectedVisRect.boundaryMax
     internal val visBoundX:Float = 0F
     internal val visBoundY:Float = 0F
     private inline val selectedVisRect:VisRect get() = visRects.first()
@@ -72,8 +95,8 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
         pdfFile.openDoc()
         val pageManager = PageManager(width,pdfFile).apply {
             setOnLoadFinished {
-                dragPinchManager.enable()
-                invalidate()
+                info { "2 页异步加载完毕，刷新" }
+                postInvalidate()
             }
         }
         return pageManager
@@ -162,9 +185,11 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
         }
         animationManger.stopAll()
         if (visRects.size == 0){
+            info { "1 添加第一个visRect" }
             visRects.add(VisRect(createPageManager()).apply {
                 flagHiting = true
             })
+            dragPinchManager.enable()
         }
         updateVisRectLayout(false, false)
     }
@@ -190,17 +215,22 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
 
         visRects.forEachIndexed { index, visRect ->
             //val rect = Rect(dt, dt, width - dt, height - dt)
-            info { visRect }
-            visRect.look(canvas){
+            info { "visRect_$index = $visRect" }
+            visRect.look(canvas) {
+                canvas.drawColor(visRect.testColor)
                 visRect.pageManager.renderPages(it, paint,
-                        visRect.worldX,visRect.worldY, visRect.height.toInt())
-                //canvas.drawRect(rect, Paint().also { it.color = visRect.testColor })
-                /*val paint = textPaintFrom(visRect.testColor, sp(fontSize + 4*(index+1)).toFloat())
-                canvas.drawText(
-                        "$index:(${visX.toInt()},${visY.toInt()}),visRect$index:($visRect)",
-                        visRect.worldX+visRect.clipX,visRect.worldY+visRect.clipY,paint)*/
+                        visRect.worldX, visRect.worldY, visRect.height.toInt())
             }
         }
+
+        //print
+
+        val textPaint = textPaintFrom(selectedVisRect.testColor, sp(20 + 4 * (0 + 1)).toFloat())
+        canvas.drawText(
+                "${selectedVisRect.worldX},${selectedVisRect.worldY}",
+                //visRect.worldX+visRect.clipX,visRect.worldY+visRect.clipY,
+                50F, 300F,
+                textPaint)
     }
 
     override fun computeScroll() {
@@ -472,7 +502,7 @@ class AnimationManger(private val host:HostView): AnkoLogger {
     //endregion
 }
 
-//region    ViewDragPinchManager
+//region    DragPinchManager
 
 //增加控制：1 增量只能朝一个方向进行，直到UP；
 class DragPinchManager(private val host: HostView, private val animationManger: AnimationManger):
@@ -534,7 +564,8 @@ class DragPinchManager(private val host: HostView, private val animationManger: 
             if (Math.abs(distanceX)>Math.abs(distanceY)*1.5F){
                 host.moveOffset(-distanceX, 0F)
             }else{
-                host.moveOffset(0F, -distanceY)
+                //背景坐标增大，为正值（和加速方向相反？）
+                host.moveOffset(0F, distanceY)
             }
         }
         return true
@@ -542,26 +573,32 @@ class DragPinchManager(private val host: HostView, private val animationManger: 
 
     override fun onFling(e1: MotionEvent?, e2: MotionEvent?, velocityX: Float, velocityY: Float): Boolean {
         if (host.isSwipeVertical) {
-            val maxVelY = host.height * 1
-            val velY = if (velocityY > maxVelY) maxVelY else velocityY.toInt()
+            //背景坐标增大，为负值（终点小于起点）
+            //val maxVelY = host.height * 1
+            //val velY = if (velocityY > maxVelY) maxVelY else velocityY.toInt()
+            val velY = -velocityY.toInt()
             val y = host.visY.toInt()
-            val minY = y - 8000
-            val maxY = y + 8000
-            animationManger.startFlingAnimation(host.visX.toInt(), y,
+            val minY = host.visMinY.toInt()
+            val maxY = host.visMaxY.toInt()
+            //x速率为0，坐标有用吗？当然有用
+            val fixedX = host.visX.toInt()
+            animationManger.startFlingAnimation(fixedX, y,
                     0, velY,
-                    0, 0,
+                    fixedX, fixedX,
                     minY, maxY)
         } else {
-            val maxVelX = host.width * 1
-            val velX = if (velocityX > maxVelX) maxVelX else velocityX.toInt()
+            //val maxVelX = host.width * 1
+            //val velX = if (velocityX > maxVelX) maxVelX else velocityX.toInt()
+            val velX = -velocityX.toInt()
             val x = host.visX.toInt()
             //模拟无限
             val minX = x - 8000
             val maxX = x + 8000
-            animationManger.startFlingAnimation(x, host.visY.toInt(),
+            val fixedY = host.visY.toInt()
+            animationManger.startFlingAnimation(x, fixedY,
                     velX, 0,
                     minX, maxX,
-                    0, 0)
+                    fixedY, fixedY)
         }
         return true
     }
@@ -627,8 +664,8 @@ class PageManager private constructor(
         private set
     //var requestPage:io.reactivex.Observable<out Int>? = null
 
-    private val maxPageCount = 12
-    private val initPageCount = 2
+    private val maxPageCount = 15
+    private val initPageCount = 4
     private val pageCountPerTime = 2
     private val pageListUpdateLock = Any()
     private var loadFinish:(()->Unit)? = null
@@ -657,19 +694,29 @@ class PageManager private constructor(
             return
         }
 
-        canvas.translate(-visStart, -visEnd)
+        //canvas.translate(0F, -visY)
         synchronized(pageListUpdateLock) {
+            info { "==pageIndRange: [$startBoundaryPageInd,$endBoundaryPageInd]" }
+            var isVisbleFirst = false
             pageList.forEach { page ->
-                if (visStart >= page.begAnixValue && visStart < page.endAnixValue) {
-                    canvas.drawBitmap(page.bmp, visX, page.begAnixValue, paint)
+                if (!isVisbleFirst && visEnd > page.begAnixValue) {
+                    isVisbleFirst = true
                 } else if (visEnd <= page.begAnixValue) {
                     return@forEach
                 }
+                if (isVisbleFirst){
+                    info { "==pageInd: ${page.pageInd},[${page.begAnixValue.toInt()},${page.endAnixValue}],[${startBoundarySlide.toInt()},${endBoundarySlide.toInt()}]" }
+                    canvas.drawBitmap(page.bmp, visX, page.begAnixValue-visY, paint)
+                }
             }
         }
-        canvas.translate(visStart, visEnd)
+        //canvas.translate(0F, visY)
 
-        val offset = 2 * visLength
+        if (loading) {
+            return
+        }
+
+        val offset = 4 * visLength
         if (Math.abs(endBoundarySlide - visEnd) < offset && canNextPage) {
             backwardLoad()
             return
@@ -786,19 +833,19 @@ class PageManager private constructor(
             }
 
             synchronized(pageListUpdateLock) {
-                if (startBoundaryPageInd == -1 || endBoundaryPageInd == -1) {
+                if (pageList.size == 0) {
                     pageList.add(this)
+                    begAnixValue = 0F
                     //重置一下比较好
                     startBoundaryPageInd = pageInd
                     endBoundaryPageInd = pageInd
-                    startBoundarySlide = 0F
-                    endBoundarySlide = 0F
-                    begAnixValue = startBoundarySlide
+                    startBoundarySlide = begAnixValue
+                    endBoundarySlide = endAnixValue
                 } else if (pageInd > endBoundaryPageInd) {
                     pageList.add(this)
                     begAnixValue = endBoundarySlide
                     endBoundaryPageInd = pageInd
-                    endBoundarySlide += calcLength
+                    endBoundarySlide = endAnixValue
                 } else if (pageInd < startBoundaryPageInd) {
                     pageList.add(0, this)
                     startBoundaryPageInd = pageInd
