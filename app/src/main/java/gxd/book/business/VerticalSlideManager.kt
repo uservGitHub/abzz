@@ -167,6 +167,21 @@ class HostView(ctx:Context):RelativeLayout(ctx),AnkoLogger{
         invalidate()
     }
 
+    internal fun scaleToBig(){
+        if (visRects.size == 0){
+            return
+        }
+        animationManger.stopAll()
+        visRects.first().scale *= 1.2F
+        invalidate()
+    }
+    internal fun scaleToSmall(){
+        if (visRects.size == 0) return
+        animationManger.stopAll()
+        visRects.first().scale /= 1.2F
+        invalidate()
+    }
+
     /**
      * 调整布局
      */
@@ -386,6 +401,13 @@ class VisRect(val pageManager: PageManager,val testColor: Int = randColor){
         f.invoke(canvas)
         canvas.restore()
     }
+
+    var scale:Float get() = pageManager.scaleValue
+        set(value) {
+            if (value != pageManager.scaleValue) {
+                pageManager.scale(value)
+            }
+        }
 
     fun moveWorldOffset(dx: Float, dy: Float) {
         worldX += dx
@@ -697,6 +719,14 @@ class PageManager private constructor(
         private set
     var endBoundarySlide: Float = 0F
         private set
+    var scaleValue:Float = 1F
+        private set
+    var centerY:Float = 0F
+        private set
+    val startBoundaryScale:Float
+        get() = centerY - scaleValue*(centerY-startBoundarySlide)
+    val endBoundaryScale:Float
+        get() = centerY + scaleValue*(endBoundarySlide-centerY)
     private var startBoundaryPageInd: Int = -1
         private set
     private var endBoundaryPageInd: Int = -1
@@ -719,8 +749,17 @@ class PageManager private constructor(
 
         backwardAdd(startPageInd, initPageCount)
     }
-
-    fun renderPages(canvas: Canvas, paint:Paint, visX:Float, visY:Float, visLength:Int) {
+    fun scale(value:Float, y:Float=0F){
+        scaleValue = value
+        centerY = y
+    }
+    fun renderPages(canvas: Canvas, paint:Paint, visX:Float, visY:Float, visLength:Int){
+        //变换后，调用nativeRenderPages，centerY就不能使用了，即centerY===0
+        canvas.scale(scaleValue, scaleValue)
+        nativeRenderPages(canvas, paint, visX, visY/scaleValue, (visLength/scaleValue).toInt())
+        canvas.scale(1/scaleValue, 1/scaleValue)
+    }
+    fun nativeRenderPages(canvas: Canvas, paint:Paint, visX:Float, visY:Float, visLength:Int) {
         if (pageList.size == 0) {
             return
         }
@@ -779,8 +818,10 @@ class PageManager private constructor(
                 .map { backwardAdd(it, pageCountPerTime) }
                 .observeOn(Schedulers.io())
                 .subscribe {
-                    while (pageList.size > maxPageCount){
-                        pageList.first().remove()
+                    synchronized(pageListUpdateLock) {
+                        while (pageList.size > maxPageCount) {
+                            pageList.first().remove()
+                        }
                     }
                     loadFinish?.invoke()
                     loading = false
@@ -796,8 +837,10 @@ class PageManager private constructor(
                 .map { forwardAdd(it, pageCountPerTime) }
                 .observeOn(Schedulers.io())
                 .subscribe {
-                    while (pageList.size > maxPageCount){
-                        pageList.last().remove()
+                    synchronized(pageListUpdateLock) {
+                        while (pageList.size > maxPageCount) {
+                            pageList.last().remove()
+                        }
                     }
                     loadFinish?.invoke()
                     loading = false
@@ -945,6 +988,8 @@ class DefaultConfigScreen(ctx:Context): RelativeLayout(ctx),AttachScreen,AnkoLog
     private lateinit var btnReverse: Button
     private lateinit var cbLock1: CheckBox
     private lateinit var cbLock2: CheckBox
+    private lateinit var btnBig:Button
+    private lateinit var btnSmall:Button
     //endregion
 
     //region    excute
@@ -954,9 +999,22 @@ class DefaultConfigScreen(ctx:Context): RelativeLayout(ctx),AttachScreen,AnkoLog
     val rFirst:()->Unit = { host.remove(host.visRects.first()) }
     val rLast:()->Unit = { host.remove(host.visRects.last()) }
     val reverse:()->Unit = { host.reverse() }
+
     //endregion
 
     init {
+        btnBig = Button(ctx).apply {
+            text = "大"
+            setOnClickListener {
+                host.scaleToBig()
+            }
+        }
+        btnSmall = Button(ctx).apply {
+            text = "小"
+            setOnClickListener {
+                host.scaleToSmall()
+            }
+        }
         btnSpringBack = Button(ctx).apply {
             text = "回弹"
             setOnClickListener {
@@ -1039,6 +1097,8 @@ class DefaultConfigScreen(ctx:Context): RelativeLayout(ctx),AttachScreen,AnkoLog
         tvlp.addRule(RelativeLayout.CENTER_IN_PARENT, RelativeLayout.TRUE)
         val panel = LinearLayout(view.context).apply {
             orientation = LinearLayout.HORIZONTAL
+            addView(btnBig)
+            addView(btnSmall)
             addView(btnSpringBack)
             addView(btnAdd)
             addView(btnRemove)
@@ -1046,7 +1106,10 @@ class DefaultConfigScreen(ctx:Context): RelativeLayout(ctx),AttachScreen,AnkoLog
             addView(cbLock1)
             addView(cbLock2)
         }
-        addView(panel, tvlp)
+        //addView(panel, tvlp)
+        addView(HorizontalScrollView(view.context).apply {
+            addView(panel)
+        }, tvlp)
 
         val lp = RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT)
