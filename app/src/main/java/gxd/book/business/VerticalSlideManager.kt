@@ -9,8 +9,9 @@ import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
-import android.widget.OverScroller
+import android.widget.*
 import gxd.book.android.sdPath
 import io.reactivex.Observable
 import io.reactivex.Scheduler
@@ -26,7 +27,7 @@ private val randColor:Int get() {
     return Color.rgb(r.nextInt(256), r.nextInt(256), r.nextInt(256))
 }
 
-class HostView(ctx:Context):View(ctx),AnkoLogger{
+class HostView(ctx:Context):RelativeLayout(ctx),AnkoLogger{
     companion object {
         private const val SelectHandleColor = Color.RED
         private const val DefaultHandleColor = Color.BLACK
@@ -51,11 +52,23 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
         get() = VIEW_TAG
     private val animationManger:AnimationManger
     private val dragPinchManager:DragPinchManager
+    private val configScreen:AttachScreen
+    private val sharePdfFile:PdfFile
+
     internal fun moveTo(x:Float, y:Float) {
         visRects.forEach {
-            if (it.flagHiting || !it.locked){
+            if (it.flagHiting){   // || !it.locked
                 it.worldX = x
                 it.worldY = y
+            }
+        }
+        invalidate()
+    }
+    internal fun moveOffset(dx:Float, dy:Float){
+        visRects.forEach {
+            if (it.flagHiting || !it.locked){
+                it.worldX += dx
+                it.worldY += dy
             }
         }
         invalidate()
@@ -70,7 +83,7 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
         }
     }
     internal val isSwipeVertical = true
-    internal fun moveOffset(dx:Float, dy:Float) = moveTo(visX+dx, visY+dy)
+
     internal val visX:Float get() = selectedVisRect.worldX
     internal val visY:Float get() = selectedVisRect.worldY
     internal val visMinY:Float get() = selectedVisRect.boundaryMin
@@ -79,6 +92,11 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
     internal val visBoundY:Float = 0F
     private inline val selectedVisRect:VisRect get() =
         visRects.firstOrNull { it.flagHiting } ?: visRects.first()
+    internal fun showConfigScreen(){
+        if (!configScreen.shown()){
+            configScreen.show()
+        }
+    }
 
     private var hasSize = false
     private var visType:Int = VisRect.FILL_ALL
@@ -88,13 +106,22 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
         animationManger = AnimationManger(this)
         dragPinchManager = DragPinchManager(this, animationManger)
         //visRects.add(VisRect())
+        configScreen = DefaultConfigScreen(ctx).apply {
+            setupLayout(this@HostView)
+        }
+
+        val filename = "${context.sdPath}/gxd.book/atest/testpdf.pdf"
+        sharePdfFile = PdfFile(filename).apply {
+            openFile()
+            openDoc()
+        }
     }
     private fun createPageManager():PageManager{
-        val filename = "${context.sdPath}/gxd.book/atest/testpdf.pdf"
+        /*val filename = "${context.sdPath}/gxd.book/atest/testpdf.pdf"
         val pdfFile = PdfFile(filename)
         pdfFile.openFile()
-        pdfFile.openDoc()
-        val pageManager = PageManager(width,pdfFile).apply {
+        pdfFile.openDoc()*/
+        val pageManager = PageManager(width,sharePdfFile).apply {
             setOnLoadFinished {
                 info { "2 页异步加载完毕，刷新" }
                 postInvalidate()
@@ -112,6 +139,7 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
         if (visRects.size != 1) {
             return
         }
+        animationManger.stopAll()
         visRects.add(VisRect(createPageManager()))
         updateVisRectLayout()
         invalidate()
@@ -124,6 +152,7 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
         if (visRects.size != 2){
             return
         }
+        animationManger.stopAll()
         visRects.remove(visRect)
         updateVisRectLayout()
         invalidate()
@@ -133,6 +162,7 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
         if (visRects.size != 2){
             return
         }
+        animationManger.stopAll()
         updateVisRectLayout(true)
         invalidate()
     }
@@ -190,7 +220,7 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
             visRects.add(VisRect(createPageManager()).apply {
                 flagHiting = true
             })
-            autoAdd()
+            //autoAdd()
             dragPinchManager.enable()
         }
         updateVisRectLayout(false, false)
@@ -241,6 +271,12 @@ class HostView(ctx:Context):View(ctx),AnkoLogger{
             return
         }
         animationManger.computeFling()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        animationManger.stopAll()
+        sharePdfFile.closeDoc()
     }
     //endregion
 }
@@ -539,6 +575,7 @@ class DragPinchManager(private val host: HostView, private val animationManger: 
         //可以进行放大等双击操作
         dbClickTick = System.currentTimeMillis()
         info { "hostDbClick" }
+        host.showConfigScreen()
         return true
     }
 
@@ -885,4 +922,160 @@ class PageManager private constructor(
             return false
         }
     }
+}
+
+interface AttachScreen{
+    fun setupLayout(view: HostView)
+    fun destroyLayout()
+    fun shown():Boolean
+    fun show()
+    fun hide()
+    fun hideDelayed()
+}
+
+class DefaultConfigScreen(ctx:Context): RelativeLayout(ctx),AttachScreen,AnkoLogger{
+    override val loggerTag: String
+        get() = VIEW_TAG
+    private var isSeup = false
+    private lateinit var host:HostView
+    //region btn
+    private lateinit var btnSpringBack: Button
+    private lateinit var btnAdd: Button
+    private lateinit var btnRemove: Button
+    private lateinit var btnReverse: Button
+    private lateinit var cbLock1: CheckBox
+    private lateinit var cbLock2: CheckBox
+    //endregion
+
+    //region    excute
+    val close:()->Unit = { hide() }
+    val tback:()->Unit = { host.springBack(); hideDelayed() }
+    val add:()->Unit = { host.autoAdd() }
+    val rFirst:()->Unit = { host.remove(host.visRects.first()) }
+    val rLast:()->Unit = { host.remove(host.visRects.last()) }
+    val reverse:()->Unit = { host.reverse() }
+    //endregion
+
+    init {
+        btnSpringBack = Button(ctx).apply {
+            text = "回弹"
+            setOnClickListener {
+                host.springBack()
+                hideDelayed()
+            }
+        }
+        btnAdd = Button(ctx).apply {
+            text = "添加"
+            setOnClickListener {
+                host.autoAdd()
+                updateCbLocks()
+                hideDelayed()
+            }
+        }
+        btnRemove = Button(ctx).apply {
+            text = "删除"
+            setOnClickListener {
+                info { "call random remove VisRect" }
+                val random = Random()
+                val index = Math.abs(random.nextInt())
+                val visRect = host.visRects[index.rem(host.visRects.size)]
+                host.remove(visRect)
+                updateCbLocks()
+                hideDelayed()
+            }
+        }
+        btnReverse = Button(ctx).apply {
+            text = "反转"
+            setOnClickListener {
+                info { "call random reverse VisRects" }
+                host.reverse()
+                updateCbLocks()
+                hideDelayed()
+            }
+        }
+        cbLock1 = CheckBox(ctx).apply {
+            text = "vis1"
+            setOnCheckedChangeListener { buttonView, isChecked ->
+                if (!updateLocking && host.visRects.size>0){
+                    host.visRects[0].locked = isChecked
+                    info { "vis1.locked = ${host.visRects[0].locked}" }
+                    Toast.makeText(ctx, "vis1.locked = ${host.visRects[0].locked}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        cbLock2 = CheckBox(ctx).apply {
+            text = "vis2"
+            setOnCheckedChangeListener { buttonView, isChecked ->
+                if (!updateLocking && host.visRects.size>1){
+                    host.visRects[1].locked = isChecked
+                }
+            }
+        }
+        visibility = View.INVISIBLE
+    }
+    private var updateLocking = false
+    private fun updateCbLocks(){
+        updateLocking = true
+        cbLock1.isEnabled = false
+        cbLock2.isEnabled = false
+        host.visRects.forEachIndexed { index, visRect ->
+            when(index){
+                1 -> {cbLock1.isChecked = visRect.locked; cbLock1.isEnabled = true}
+                2 -> {cbLock2.isChecked = visRect.locked; cbLock2.isEnabled = true}
+            }
+        }
+        updateLocking = false
+    }
+
+    //region    SplitScreen
+
+    override fun setupLayout(view: HostView) {
+        if (isSeup){
+            return
+        }
+        isSeup = true
+        val tvlp = RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT)
+        tvlp.addRule(RelativeLayout.CENTER_IN_PARENT, RelativeLayout.TRUE)
+        val panel = LinearLayout(view.context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(btnSpringBack)
+            addView(btnAdd)
+            addView(btnRemove)
+            addView(btnReverse)
+            addView(cbLock1)
+            addView(cbLock2)
+        }
+        addView(panel, tvlp)
+
+        val lp = RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT)
+        lp.addRule(RelativeLayout.CENTER_IN_PARENT, RelativeLayout.TRUE)
+        view.addView(this, lp)
+
+        host = view
+    }
+
+    override fun destroyLayout() {
+        if (isSeup) {
+            host.removeView(this)
+        }
+    }
+
+    override fun hide() {
+        visibility = View.INVISIBLE
+    }
+
+    override fun hideDelayed() {
+        postDelayed({hide()},1000)
+    }
+
+    override fun show() {
+        visibility = View.VISIBLE
+    }
+
+    override fun shown(): Boolean {
+        return visibility == View.VISIBLE
+    }
+    //endregion
 }
