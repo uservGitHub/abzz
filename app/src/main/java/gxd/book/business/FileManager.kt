@@ -27,6 +27,7 @@ class TwoWayList(val size:Int) {
         private set
     internal var endInd = -1
         private set(value) {
+
             field = (value+1).rem(size)
         }
     internal var realSize = -1
